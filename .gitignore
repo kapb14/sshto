@@ -1,0 +1,15 @@
+*.tmp
+*.pyc
+*.log
+*.zip
+*.gz
+*.tar
+*.sql
+*.out
+
+.env
+
+env/
+
+__pycache__/
+

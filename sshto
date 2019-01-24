@@ -1,0 +1,58 @@
+#!/bin/bash
+####################
+NAME="sshto"
+DESCRIPTION="Interactive, sexy SSH connections menu, auto-generated from your 'ssh_config' and powered by 'percol' tool."
+MAINTAINER="Karushin Aleksandr <kapb14@gmail.com>"
+LICENSE="GNU GPLv3"
+####################
+
+if ! [[ -z $1 ]]; then
+  SSHTO_QUERY=${@}
+fi
+SSHTO_CONIFG_FILE=${SSHTO_CONFIG:=~/.ssh/config}
+SSHTO_PROMPT='<on_yellow><black> SELECT SSH HOST AND CONNECT ON IT ></black></on_yellow> %q'
+SSHTO_DEBUG=true
+
+####################
+
+if ! which percol >/dev/null; then
+  echo -e "$(tput setaf 6)ERROR: percol not exist!" 1>&2
+  echo -e " You can install it with following:" 1>&2
+  echo -e "  sudo pip install percol" 1>&2
+  echo -e " Or proceed to percol repo: 'https://github.com/mooz/percol'$(tput sgr0)" 1>&2
+  exit 1
+fi
+
+
+function list_ssh_hosts.sshto () {
+  while read line1 <&5 ; do
+    read line2 <&5
+    printf '%-25s\t%s\n' "[$line2]" "$line1" | sed 's/Host //g' | sed 's/Hostname //g'
+  done
+}
+
+####################
+
+TMPFILE=$(mktemp /tmp/${NAME}.XXXXXXXX.tmp)
+trap "{ /bin/rm -f ${TMPFILE} ; exit 255; }" EXIT
+
+sed 's/^  //g' ~/.ssh/config | grep '^[^#]' | egrep "^Host|Hostname " >> ${TMPFILE}
+
+exec 5< ${TMPFILE}
+if [[ -z $1 ]]; then
+  SSHTO_SELECTED_LINE=$(list_ssh_hosts.sshto | percol --prompt="${SSHTO_PROMPT}")
+else
+  SSHTO_SELECTED_LINE=$(list_ssh_hosts.sshto | percol --query="${SSHTO_QUERY}" --auto-match --auto-fail --prompt="${SSHTO_PROMPT}")
+fi
+exec 5<&-
+
+if [[ -z ${SSHTO_SELECTED_LINE} ]]; then
+  echo -e "$(tput setaf 6)FAIL: Nothing match to your query: \"${SSHTO_QUERY}\"$(tput sgr0)\n" 1>&2
+  exit 1
+fi
+
+${SSHTO_DEBUG} && echo "$(tput setaf 6)SSHTO_SELECTED_LINE: ${SSHTO_SELECTED_LINE}$(tput sgr0)"
+SSHTO_SELECTED_HOST=$( echo "${SSHTO_SELECTED_HOST}" | awk $'{print $2}' )
+
+ssh ${SSHTO_SELECTED_HOST}
+
